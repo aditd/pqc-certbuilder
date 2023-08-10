@@ -7,12 +7,14 @@ import re
 import sys
 import textwrap
 import time
-
 from asn1crypto import x509, keys, core
 from asn1crypto.util import int_to_bytes, int_from_bytes, timezone
 from oscrypto import asymmetric, util
 
 from .version import __version__, __version_info__
+
+from dilithium2_wrapper import verify,dilithium_sign,genKeypair
+
 
 if sys.version_info < (3,):
     int_types = (int, long)  # noqa
@@ -54,6 +56,7 @@ def pem_armor_certificate(certificate):
     """
 
     return asymmetric.dump_certificate(certificate)
+
 
 
 class CertificateBuilder(object):
@@ -805,6 +808,7 @@ class CertificateBuilder(object):
         Validates the certificate information, constructs the ASN.1 structure
         and then signs it
 
+        UPDATE: signing_private_key is in BYTES
         :param signing_private_key:
             An asn1crypto.keys.PrivateKeyInfo or oscrypto.asymmetric.PrivateKey
             object for the private key to sign the certificate with. If the key
@@ -816,16 +820,16 @@ class CertificateBuilder(object):
             certificate
         """
 
-        is_oscrypto = isinstance(signing_private_key, asymmetric.PrivateKey)
-        if not isinstance(signing_private_key, keys.PrivateKeyInfo) and not is_oscrypto:
-            raise TypeError(_pretty_message(
-                '''
-                signing_private_key must be an instance of
-                asn1crypto.keys.PrivateKeyInfo or
-                oscrypto.asymmetric.PrivateKey, not %s
-                ''',
-                _type_name(signing_private_key)
-            ))
+        # is_oscrypto = isinstance(signing_private_key, asymmetric.PrivateKey)
+        # if not isinstance(signing_private_key, keys.PrivateKeyInfo) and not is_oscrypto:
+        #     raise TypeError(_pretty_message(
+        #         '''
+        #         signing_private_key must be an instance of
+        #         asn1crypto.keys.PrivateKeyInfo or
+        #         oscrypto.asymmetric.PrivateKey, not %s
+        #         ''',
+        #         _type_name(signing_private_key)
+        #     ))
 
         if self._self_signed is not True and self._issuer is None:
             raise ValueError(_pretty_message(
@@ -858,11 +862,14 @@ class CertificateBuilder(object):
                         ca_only_extension
                     ))
 
-        signature_algo = signing_private_key.algorithm
+        ## this could be dilithium2
+        # signature_algo = signing_private_key.algorithm
+        signature_algo = 'dilithium2'
+        
         if signature_algo == 'ec':
             signature_algo = 'ecdsa'
-
-        signature_algorithm_id = '%s_%s' % (self._hash_algo, signature_algo)
+        signature_algorithm_id = 'dilithium2'
+        # signature_algorithm_id = '%s_%s' % (self._hash_algo, signature_algo)
 
         # RFC 3280 4.1.2.5
         def _make_validity_time(dt):
@@ -904,24 +911,28 @@ class CertificateBuilder(object):
             },
             'subject': self._subject,
             'subject_public_key_info': self._subject_public_key,
-            'extensions': extensions
+            # 'extensions': extensions
         })
 
-        if signing_private_key.algorithm == 'rsa':
-            sign_func = asymmetric.rsa_pkcs1v15_sign
-        elif signing_private_key.algorithm == 'dsa':
-            sign_func = asymmetric.dsa_sign
-        elif signing_private_key.algorithm == 'ec':
-            sign_func = asymmetric.ecdsa_sign
+        # if signature_algorithm_id=='dilithium2':
 
-        if not is_oscrypto:
-            signing_private_key = asymmetric.load_private_key(signing_private_key)
-        signature = sign_func(signing_private_key, tbs_cert.dump(), self._hash_algo)
+
+        # if signing_private_key.algorithm == 'rsa':
+        #     sign_func = asymmetric.rsa_pkcs1v15_sign
+        # elif signing_private_key.algorithm == 'dsa':
+        #     sign_func = asymmetric.dsa_sign
+        # elif signing_private_key.algorithm == 'ec':
+        #     sign_func = asymmetric.ecdsa_sign
+
+        # if not is_oscrypto:
+        #     signing_private_key = asymmetric.load_private_key(signing_private_key)
+        # signature = sign_func(signing_private_key, tbs_cert.dump(), self._hash_algo)
+        signature = dilithium_sign(tbs_cert.dump(),signing_private_key)
 
         return x509.Certificate({
             'tbs_certificate': tbs_cert,
             'signature_algorithm': {
-                'algorithm': signature_algorithm_id
+                'algorithm': signature_algorithm_id # 'dilithium2'
             },
             'signature_value': signature
         })
