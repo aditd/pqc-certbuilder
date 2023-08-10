@@ -9,12 +9,15 @@ import textwrap
 import time
 from asn1crypto import x509, keys, core
 from asn1crypto.util import int_to_bytes, int_from_bytes, timezone
-from oscrypto import asymmetric, util
+# from oscrypto import asymmetric, util
 
 from .version import __version__, __version_info__
 
 from dilithium2_wrapper import verify,dilithium_sign,genKeypair
 
+import os
+def rand_bytes(length):
+    return os.urandom(length)
 
 if sys.version_info < (3,):
     int_types = (int, long)  # noqa
@@ -43,19 +46,19 @@ def _writer(func):
     return property(fget=lambda self: getattr(self, '_%s' % name), fset=func)
 
 
-def pem_armor_certificate(certificate):
-    """
-    Encodes a certificate into PEM format
+# def pem_armor_certificate(certificate):
+#     """
+#     Encodes a certificate into PEM format
 
-    :param certificate:
-        An asn1crypto.x509.Certificate object of the certificate to armor.
-        Typically this is obtained from CertificateBuilder.build().
+#     :param certificate:
+#         An asn1crypto.x509.Certificate object of the certificate to armor.
+#         Typically this is obtained from CertificateBuilder.build().
 
-    :return:
-        A byte string of the PEM-encoded certificate
-    """
+#     :return:
+#         A byte string of the PEM-encoded certificate
+#     """
 
-    return asymmetric.dump_certificate(certificate)
+#     return asymmetric.dump_certificate(certificate)
 
 
 
@@ -173,8 +176,8 @@ class CertificateBuilder(object):
         An asn1crypto.x509.Certificate object of the issuer. Used to populate
         both the issuer field, but also the authority key identifier extension.
         """
-
-        is_oscrypto = isinstance(value, asymmetric.Certificate)
+        is_oscrypto = False
+        # is_oscrypto = isinstance(value, asymmetric.Certificate)
         if not isinstance(value, x509.Certificate) and not is_oscrypto:
             raise TypeError(_pretty_message(
                 '''
@@ -287,8 +290,8 @@ class CertificateBuilder(object):
         An asn1crypto.keys.PublicKeyInfo or oscrypto.asymmetric.PublicKey
         object of the subject's public key.
         """
-
-        is_oscrypto = isinstance(value, asymmetric.PublicKey)
+        is_oscrypto = False
+        # is_oscrypto = isinstance(value, asymmetric.PublicKey)
         if not isinstance(value, keys.PublicKeyInfo) and not is_oscrypto:
             raise TypeError(_pretty_message(
                 '''
@@ -843,7 +846,7 @@ class CertificateBuilder(object):
 
         if self._serial_number is None:
             time_part = int_to_bytes(int(time.time()))
-            random_part = util.rand_bytes(4)
+            random_part = rand_bytes(4)
             self._serial_number = int_from_bytes(time_part + random_part)
 
         if self._begin_date is None:
